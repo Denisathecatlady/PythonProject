@@ -93,6 +93,7 @@ LabTrack/
 │   ├── register.html
 │   ├── patient_results.html
 │── app.py            # Main Flask application
+│── requirements.txt
 │── README.md         # Documentation
 ```
 
