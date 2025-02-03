@@ -2,24 +2,58 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import psycopg2
 import bcrypt
 
-app = Flask(__name__)
-app.secret_key = "tajny_klic"
+import os
+import psycopg2
+import urllib.parse as urlparse
 
-# Připojení k PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL")
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+app = Flask(__name__)
+app.secret_key = SECRET_KEY
+
 def create_connection():
     try:
+        if not DATABASE_URL:
+            raise ValueError("Chybí DATABASE_URL v environment variables!")
+
+        # Parsování URL pro PostgreSQL
+        url = urlparse.urlparse(DATABASE_URL)
+        dbname = url.path[1:]
+        user = url.username
+        password = url.password
+        host = url.hostname
+        port = url.port
+
         conn = psycopg2.connect(
-            dbname="lab",
-            user="postgres",
-            password="coderslab",
-            host="localhost",
-            port="5432"
+            dbname=dbname,
+            user=user,
+            password=password,
+            host=host,
+            port=port
         )
         return conn
-    except psycopg2.OperationalError:
-        print("Databáze 'lab' neexistuje. Vytvářím ji...")
-        create_database()
-        return create_connection()
+    except Exception as e:
+        print(f" Chyba připojení k databázi: {e}")
+        return None
+
+
+
+# # Připojení k PostgreSQL
+# def create_connection():
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="lab",
+#             user="postgres",
+#             password="coderslab",
+#             host="localhost",
+#             port="5432"
+#         )
+#         return conn
+#     except psycopg2.OperationalError:
+#         print("Databáze 'lab' neexistuje. Vytvářím ji...")
+#         create_database()
+#         return create_connection()
 
 def create_database():
     try:
