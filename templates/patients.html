@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Seznam pacientů a výsledků</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+<body>
+    <h2>Seznam pacientů a laboratorních výsledků</h2>
+
+    <table border="1">
+        <tr>
+            <th>Rodné číslo</th>
+            <th>Jméno</th>
+            <th>Příjmení</th>
+            <th>Leukocyty</th>
+            <th>Erytrocyty</th>
+            <th>Hematokrit</th>
+            <th>Hemoglobin</th>
+            <th>Trombocyty</th>
+        </tr>
+        {% for patient in patients %}
+        <tr>
+            <td>{{ patient[0] }}</td>
+            <td>{{ patient[1] }}</td>
+            <td>{{ patient[2] }}</td>
+            <td>{{ patient[3] if patient[3] is not none else 'N/A' }}</td>
+            <td>{{ patient[4] if patient[4] is not none else 'N/A' }}</td>
+            <td>{{ patient[5] if patient[5] is not none else 'N/A' }}</td>
+            <td>{{ patient[6] if patient[6] is not none else 'N/A' }}</td>
+            <td>{{ patient[7] if patient[7] is not none else 'N/A' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="{{ url_for('dashboard') }}">Zpět na dashboard</a>
+</body>
+</html>

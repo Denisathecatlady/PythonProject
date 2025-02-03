@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Výsledky pacienta</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h2>Výsledky pacienta: {{ patient[0] }} {{ patient[1] }}</h2>
+    <h3>Rodné číslo: {{ rc }}</h3>
+
+    {% if results %}
+        <table class="data-table">
+            <tr>
+                <th>Leukocyty</th>
+                <th>Erytrocyty</th>
+                <th>Hemoglobin</th>
+                <th>Hematokrit</th>
+                <th>Trombocyty</th>
+                <th>Datum</th>
+            </tr>
+            {% for result in results %}
+            <tr>
+                <td>{{ result[0] }}</td>
+                <td>{{ result[1] }}</td>
+                <td>{{ result[2] }}</td>
+                <td>{{ result[3] }}</td>
+                <td>{{ result[4] }}</td>
+                <td>{{ result[5].strftime('%d.%m.%Y %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Tento pacient zatím nemá žádné laboratorní výsledky.</p>
+    {% endif %}
+
+    <br>
+    <a href="{{ url_for('dashboard') }}" class="logout-button">Zpět na dashboard</a>
+</body>
+</html>
