@@ -222,6 +222,22 @@ def add_patient():
 
     return redirect(url_for("dashboard"))
 
+@app.route("/delete_patient/<rc>", methods=["POST"])
+def delete_patient(rc):
+    if "user" not in session or session.get("role") != "laborant":
+        flash("Nemáš oprávnění!", "danger")
+        return redirect(url_for("dashboard"))
+
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM patients WHERE rc = %s", (rc,))
+    conn.commit()
+
+    flash("Pacient byl úspěšně smazán!", "success")
+    cursor.close()
+    conn.close()
+    return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
     create_tables()
