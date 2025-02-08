@@ -101,13 +101,13 @@ LabTrack/
 - Passwords are **hashed** using bcrypt.
 - Unauthorized users cannot access restricted pages.
 
-## Future Enhancements
+## Future Enhancements?
 - Export lab results to PDF
 - Data visualization (graphs, charts)
 - Integration with hospital systems (HL7/FHIR API)
 
-## License
-MIT License. Feel free to use and modify!
+
+Feel free to use and modify!
 
 ---
 Made with ❤️ by Dendoid
