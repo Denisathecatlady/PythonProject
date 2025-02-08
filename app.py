@@ -70,6 +70,42 @@ def create_tables():
 def index():
     return redirect(url_for("login"))
 
+@app.route("/add_result", methods=["POST"])
+def add_result():
+    if "user" not in session or session.get("role") != "laborant":
+        flash("Nemáš oprávnění!", "danger")
+        return redirect(url_for("dashboard"))
+
+    rc = request.form.get("rc")
+    leukocytes = request.form.get("leukocytes")
+    erytrocytes = request.form.get("erytrocytes")
+    hemoglobine = request.form.get("hemoglobine")
+    hematocrite = request.form.get("hematocrite")
+    trombocytes = request.form.get("trombocytes")
+
+    conn = create_connection()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT rc FROM patients WHERE rc = %s", (rc,))
+        patient_exists = cursor.fetchone()
+
+        if not patient_exists:
+            flash("Pacient s tímto rodným číslem neexistuje!", "danger")
+        else:
+            try:
+                cursor.execute("""
+                    INSERT INTO results (rc, leukocytes, erytrocytes, hemoglobine, hematocrite, trombocytes)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (rc, leukocytes, erytrocytes, hemoglobine, hematocrite, trombocytes))
+                conn.commit()
+                flash("Výsledek byl úspěšně uložen!", "success")
+            except psycopg2.Error as e:
+                flash(f"Chyba při ukládání: {e}", "danger")
+
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for("dashboard"))
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
