@@ -70,6 +70,10 @@ def create_tables():
 def index():
     return redirect(url_for("login"))
 
+@app.route("/patient_results/<rc>")
+def patient_results(rc):
+    return f"Výsledky pro pacienta s RC: {rc}"
+
 @app.route("/add_result", methods=["POST"])
 def add_result():
     if "user" not in session or session.get("role") != "laborant":
