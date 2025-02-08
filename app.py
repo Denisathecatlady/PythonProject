@@ -111,6 +111,35 @@ def logout():
     flash("Odhlášení úspěšné.", "success")
     return redirect(url_for("login"))
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if not username or not password:
+            flash("Vyplň všechna pole!", "danger")
+            return redirect(url_for("register"))
+
+        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (username, hashed_password, "laborant"))
+            conn.commit()
+            flash("Registrace úspěšná! Můžeš se přihlásit.", "success")
+            return redirect(url_for("login"))
+        except psycopg2.Error:
+            flash("Uživatelské jméno už existuje!", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+
+    return render_template("register.html")
+
+
 
 if __name__ == "__main__":
     create_tables()
