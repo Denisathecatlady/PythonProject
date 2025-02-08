@@ -7,6 +7,10 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "tajny_klic")
 
 
+app.permanent_session_lifetime = 86400
+
+
+
 def create_connection():
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
@@ -14,50 +18,51 @@ def create_connection():
         return None
     try:
         conn = psycopg2.connect(DATABASE_URL, sslmode="require")
-        create_tables(conn)
         return conn
     except psycopg2.OperationalError as e:
-        print(f"Chyba připojení k databázi: {e}")
+        print(f" Chyba připojení k databázi: {e}")
         return None
 
 
-def create_tables(conn):
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(100) UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role VARCHAR(20) NOT NULL DEFAULT 'laborant'
-        )
-    """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS patients (
-            rc VARCHAR(10) PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            surname VARCHAR(100) NOT NULL
-        )
-    """)
+def create_tables():
+    conn = create_connection()
+    if conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role VARCHAR(20) NOT NULL DEFAULT 'laborant'
+                )
+            """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS results (
-            id SERIAL PRIMARY KEY,
-            rc VARCHAR(10) NOT NULL,
-            leukocytes INTEGER NOT NULL,
-            erytrocytes INTEGER NOT NULL,
-            hemoglobine INTEGER NOT NULL,
-            hematocrite INTEGER NOT NULL,
-            trombocytes INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (rc) REFERENCES patients(rc) ON DELETE CASCADE
-        )
-    """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS patients (
+                    rc VARCHAR(10) PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    surname VARCHAR(100) NOT NULL
+                )
+            """)
 
-    conn.commit()
-    cursor.close()
-    print("Tabulky byly úspěšně vytvořeny nebo již existují.")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS results (
+                    id SERIAL PRIMARY KEY,
+                    rc VARCHAR(10) NOT NULL,
+                    leukocytes INTEGER NOT NULL,
+                    erytrocytes INTEGER NOT NULL,
+                    hemoglobine INTEGER NOT NULL,
+                    hematocrite INTEGER NOT NULL,
+                    trombocytes INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (rc) REFERENCES patients(rc) ON DELETE CASCADE
+                )
+            """)
 
+            conn.commit()
+            print("Tabulky byly úspěšně vytvořeny nebo již existují.")
+        conn.close()
 
 
 # Flask aplikace
@@ -73,15 +78,18 @@ def login():
         password = request.form.get("password")
 
         conn = create_connection()
-        cursor = conn.cursor()
+        if conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT password, role FROM users WHERE username = %s", (username,))
+                result = cursor.fetchone()
 
-        cursor.execute("SELECT password FROM users WHERE username = %s", (username,))
-        result = cursor.fetchone()
+                if result and bcrypt.checkpw(password.encode(), result[0].encode()):
+                    session.permanent = True  # Uchování session
+                    session["user"] = username
+                    session["role"] = result[1]  # Nastavení role uživatele
 
-        if result and bcrypt.checkpw(password.encode(), result[0].encode()):
-            session["user"] = username
-            flash("Přihlášení úspěšné!", "success")
-            return redirect(url_for("dashboard"))
+                    flash("Přihlášení úspěšné!", "success")
+                    return redirect(url_for("dashboard"))
 
         flash("Nesprávné přihlašovací údaje.", "danger")
 
@@ -91,26 +99,25 @@ def login():
 @app.route("/dashboard")
 def dashboard():
     if "user" not in session:
-        flash("Musíš se nejdřív přihlásit!", "danger")
+        flash("🔒 Musíš se nejdřív přihlásit!", "danger")
         return redirect(url_for("login"))
 
     username = session["user"]
-    role = session["role"]
+    role = session.get("role", "laborant")
 
     conn = create_connection()
-    cursor = conn.cursor()
+    patients, users, results = [], [], []
+    if conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT rc, name, surname FROM patients")
+            patients = cursor.fetchall()
 
-    cursor.execute("SELECT rc, name, surname FROM patients")
-    patients = cursor.fetchall()
+            cursor.execute("SELECT id, username, role FROM users")
+            users = cursor.fetchall()
 
-    cursor.execute("SELECT * FROM users")
-    users = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM results")
-    results = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
+            cursor.execute("SELECT * FROM results")
+            results = cursor.fetchall()
+        conn.close()
 
     return render_template("dashboard.html", username=username, role=role, patients=patients, users=users, results=results)
 
@@ -118,8 +125,10 @@ def dashboard():
 @app.route("/logout")
 def logout():
     session.pop("user", None)
+    session.pop("role", None)
     flash("Odhlášení úspěšné.", "success")
     return redirect(url_for("login"))
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -134,21 +143,48 @@ def register():
         hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
         conn = create_connection()
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (username, hashed_password, "laborant"))
-            conn.commit()
-            flash("Registrace úspěšná! Můžeš se přihlásit.", "success")
-            return redirect(url_for("login"))
-        except psycopg2.Error:
-            flash("Uživatelské jméno už existuje!", "danger")
-        finally:
-            cursor.close()
+        if conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (username, hashed_password, "laborant"))
+                    conn.commit()
+                    flash("Registrace úspěšná! Můžeš se přihlásit.", "success")
+                    return redirect(url_for("login"))
+                except psycopg2.Error:
+                    flash("Uživatelské jméno už existuje!", "danger")
             conn.close()
 
     return render_template("register.html")
 
+
+# Přidání pacienta
+@app.route("/add_patient", methods=["POST"])
+def add_patient():
+    if "user" not in session or session.get("role") != "laborant":
+        flash("⛔ Nemáš oprávnění!", "danger")
+        return redirect(url_for("dashboard"))
+
+    rc = request.form.get("rc")
+    name = request.form.get("name")
+    surname = request.form.get("surname")
+
+    if not rc.isdigit() or len(rc) != 10:
+        flash("Rodné číslo musí obsahovat přesně 10 číslic!", "danger")
+        return redirect(url_for("dashboard"))
+
+    conn = create_connection()
+    if conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT rc FROM patients WHERE rc = %s", (rc,))
+            if cursor.fetchone():
+                flash("Pacient s tímto rodným číslem už existuje!", "danger")
+            else:
+                cursor.execute("INSERT INTO patients (rc, name, surname) VALUES (%s, %s, %s)", (rc, name, surname))
+                conn.commit()
+                flash("Pacient byl úspěšně přidán!", "success")
+        conn.close()
+
+    return redirect(url_for("dashboard"))
 
 
 if __name__ == "__main__":
