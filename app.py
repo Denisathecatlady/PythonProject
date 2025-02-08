@@ -7,7 +7,6 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "tajny_klic")
 
 
-# Připojení k PostgreSQL pomocí proměnného prostředí
 def create_connection():
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
@@ -15,19 +14,14 @@ def create_connection():
         return None
     try:
         conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        create_tables(conn)
         return conn
     except psycopg2.OperationalError as e:
         print(f"Chyba připojení k databázi: {e}")
         return None
 
 
-# Vytvoření tabulek
-def create_tables():
-    conn = create_connection()
-    if not conn:
-        print("Chyba: Nelze vytvořit tabulky, databáze není dostupná.")
-        return
-
+def create_tables(conn):
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -62,8 +56,8 @@ def create_tables():
 
     conn.commit()
     cursor.close()
-    conn.close()
     print("Tabulky byly úspěšně vytvořeny nebo již existují.")
+
 
 
 # Flask aplikace
