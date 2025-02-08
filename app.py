@@ -95,8 +95,24 @@ def dashboard():
         return redirect(url_for("login"))
 
     username = session["user"]
+    role = session["role"]
 
-    return render_template("dashboard.html", username=username)
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT rc, name, surname FROM patients")
+    patients = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM results")
+    results = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template("dashboard.html", username=username, role=role, patients=patients, users=users, results=results)
 
 
 @app.route("/logout")
