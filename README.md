@@ -1,3 +1,6 @@
+https://labtrack-85eh.onrender.com
+
+
 # LabTrack - Laboratory Results Management
 
 LabTrack is a web-based application built with Flask and PostgreSQL for managing laboratory results of patients. It allows lab technicians ("laborant") to register, log in, add patients, store test results, and view patient data.
